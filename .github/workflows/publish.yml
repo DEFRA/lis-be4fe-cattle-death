@@ -1,53 +1,28 @@
-name: Publish
+name: 'Publish NuGet Packages'
 
 on:
   push:
-    branches:
-      - main
+    tags:
+      - '*.*.*'
 
 concurrency:
-  group: $${{ github.workflow }}
+  group: nuget-publish-${{ github.ref }}
   cancel-in-progress: false
-  queue: max
 
 permissions:
+  actions: read
   contents: read
-  packages: read
-
-env:
-  AWS_REGION: eu-west-2
-  AWS_ACCOUNT_ID: "094954420758"
+  id-token: write
 
 jobs:
-  build:
-    if: github.run_number != 1
-    name: CDP-build-workflow
+  publish:
+    name: 'Publish'
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: write
-      pull-requests: write
-    env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    timeout-minutes: 20
+    environment: release
     steps:
-      - name: Check out code
-        uses: actions/checkout@v5
-      - name: Build and Publish
-        uses: DEFRA/cdp-build-action/build@main
+      - name: Publish NuGet packages
+        uses: DEFRA/lis-github-actions/actions/publish-nuget@90a6d6da2ab2d9caaf7ac11ef878017b51c09fd2 # v0.10.0
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-  ## SonarCloud
-  ## Uncomment to enable SonarCloud scan
-  ## Requires project to be set up in SonarCloud
-  ## and the SonarCloud token to be set in the repository secrets
-  # sonarcloud-scan:
-  #   name: CDP SonarCloud Scan
-  #   permissions:
-  #     id-token: write
-  #     pull-requests: write
-  #     contents: read
-  #     packages: read
-  #   uses: ./.github/workflows/sonarcloud.yml
-  #   needs: build
-  #   secrets:
-  #     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          version: ${{ github.ref_name }}
+          nuget-username: ${{ secrets.NUGET_USERNAME }}

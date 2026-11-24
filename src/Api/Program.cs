@@ -1,0 +1,169 @@
+// <copyright file="Program.cs" company="Defra">
+// Copyright (c) Defra. All rights reserved.
+// </copyright>
+
+namespace Defra.Livestock.Be4Fe.Api;
+
+using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
+using Defra.Livestock.Be4Fe.Api.Authentication;
+using Defra.Livestock.Be4Fe.Api.Config;
+using Defra.Livestock.Be4Fe.Api.Endpoints.Health;
+using Defra.Livestock.Be4Fe.Api.Exceptions;
+using Defra.Livestock.Be4Fe.Api.MetaData;
+using Defra.Livestock.Be4Fe.Api.Middleware;
+using Defra.Livestock.Be4Fe.Api.Utils;
+using Defra.Livestock.Be4Fe.Api.Utils.Logging;
+using Defra.Livestock.Be4Fe.Api.Utils.Mongo;
+using Defra.Livestock.Sdk.Submissions;
+using Defra.Livestock.Sdk.Submissions.Endpoints;
+using Defra.Livestock.Sdk.Submissions.Services;
+using Microsoft.OpenApi;
+using Scalar.AspNetCore;
+using Serilog;
+
+public class Program
+{
+    protected Program()
+    {
+    }
+
+    public static async Task Main(string[] args)
+    {
+        var app = CreateWebApplication(args);
+        await app.RunAsync();
+    }
+
+    [ExcludeFromCodeCoverage]
+    private static WebApplication CreateWebApplication(string[] args)
+    {
+        // CreateBuilder already loads appsettings.json, appsettings.{Environment}.json, environment variables and the
+        // command line, in that order.
+        var builder = WebApplication.CreateBuilder(args);
+
+        ConfigureBuilder(builder, builder.Configuration);
+
+        var app = builder.Build();
+        return SetupApplication(app);
+    }
+
+    [ExcludeFromCodeCoverage]
+    private static void ConfigureBuilder(
+        WebApplicationBuilder builder,
+        IConfigurationRoot configuration)
+    {
+        // Configure logging to use the CDP Platform standards.
+        builder.Services.AddHttpContextAccessor();
+        builder.Services.AddHealthChecks();
+        builder.Host.UseSerilog(CdpLogging.Configuration);
+        builder.Services.AddProblemDetails();
+        builder.Services.AddExceptionHandler<ApiExceptionHandler>();
+        builder.Services.ConfigureHttpJsonOptions(options =>
+        {
+            options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
+            options.SerializerOptions.DictionaryKeyPolicy = JsonNamingPolicy.SnakeCaseLower;
+        });
+
+        var services = builder.Services;
+
+        // Trust material must be loaded before anything creates outbound connections.
+        services.LoadCustomTrustStoreFromEnvironment();
+
+        services.AddValidation();
+
+        // Calls from the cattle-death UI: an API key for now, AWS STS later (LREG-560).
+        services.AddServiceToServiceAuthentication(configuration);
+
+        // Require x-cdp-request-id on every /submission endpoint (Correlation ID standard) and propagate it downstream.
+        services.AddTransient<CorrelationIdMiddleware>();
+        ConfigureHeaderPropagation(services, configuration);
+        ConfigureExternalDependencies(services);
+        ConfigureMongo(services, configuration);
+        ConfigureOpenApi(services);
+    }
+
+    [ExcludeFromCodeCoverage]
+    private static void ConfigureHeaderPropagation(IServiceCollection services, IConfiguration configuration)
+    {
+        var traceHeader = configuration.GetValue<string>("TraceHeader");
+
+        services.AddHeaderPropagation(options =>
+        {
+            if (!string.IsNullOrWhiteSpace(traceHeader))
+            {
+                options.Headers.Add(traceHeader);
+            }
+        });
+    }
+
+    [ExcludeFromCodeCoverage]
+    private static void ConfigureExternalDependencies(IServiceCollection services)
+    {
+        services.AddSingleton(TimeProvider.System);
+
+        // BFF framework submissions. The transfer to the cattle API is a stand-in that always fails until it is built.
+        services.AddSubmissions();
+        services.AddSingleton<ISubmissionTransfer, NotConfiguredSubmissionTransfer>();
+    }
+
+    [ExcludeFromCodeCoverage]
+    private static void ConfigureMongo(IServiceCollection services, IConfiguration configuration)
+    {
+        MongoExtensions.Register();
+        MongoConventions.Register();
+
+        services
+            .AddOptions<MongoConfig>()
+            .Bind(configuration.GetRequiredSection("Mongo"))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        services.AddSingleton<IMongoDbClientFactory, MongoDbClientFactory>();
+        services.AddSingleton(provider => provider.GetRequiredService<IMongoDbClientFactory>().GetDatabase());
+    }
+
+    [ExcludeFromCodeCoverage]
+    private static void ConfigureOpenApi(IServiceCollection services)
+    {
+        services.AddOpenApi(options =>
+        {
+            options.AddDocumentTransformer((document, _, _) =>
+            {
+                document.Info = new OpenApiInfo
+                {
+                    Title = "Cattle Death API",
+                    Version = "v1",
+                    Description = "BE4FE API surface for the cattle-death Node application: the BFF framework endpoints for death submissions.",
+                };
+
+                return Task.CompletedTask;
+            });
+            options.AddApiKeySecurity();
+        });
+    }
+
+    [ExcludeFromCodeCoverage]
+    private static WebApplication SetupApplication(WebApplication app)
+    {
+        app.UseCdpRequestLogging();
+        app.UseHeaderPropagation();
+        app.UseExceptionHandler();
+        app.UseRouting();
+        app.UseMiddleware<CorrelationIdMiddleware>();
+        app.UseAuthentication();
+        app.UseAuthorization();
+
+        app.MapOpenApi("/openapi/{documentName}.json").WithMetadata(new IgnoreCorrelationIdCheck());
+        app.MapScalarApiReference().WithMetadata(new IgnoreCorrelationIdCheck());
+        app.MapGet("/openapi", () => Results.Redirect("/openapi/v1.json"))
+            .ExcludeFromDescription()
+            .WithMetadata(new IgnoreCorrelationIdCheck());
+
+        // Every /submission endpoint requires AuthPolicies.ServiceToService and x-cdp-request-id; health and OpenAPI
+        // stay anonymous and need no correlation header.
+        app.UseHealthEndpoints();
+        app.MapSubmissionEndpoints().RequireServiceToServiceAuthorization();
+
+        return app;
+    }
+}
