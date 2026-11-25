@@ -51,18 +51,27 @@ public sealed partial class DataService(
         string animalId,
         CancellationToken cancellationToken = default)
     {
-        var holdingAnimals = await GetAnimalsAsync(cph, new CattleSearchQuery(Eartag: animalId), cancellationToken);
+        var holdingAnimals = await GetAnimalsByQueryAsync(cph, new CattleSearchQuery(Eartag: animalId), cancellationToken);
         var key = CompareKey(animalId);
 
         return holdingAnimals.Animals.FirstOrDefault(animal => CompareKey(animal.EarTag) == key)
             ?? throw new NotFoundException($"Animal '{animalId}' was not found on holding '{holdingAnimals.Cph}'.");
     }
 
-    public Task<HoldingAnimalsResponse> GetDamsAsync(string cph, CancellationToken cancellationToken = default) =>
-        GetAnimalsAsync(cph, new CattleSearchQuery(Sex: Female), cancellationToken);
+    public Task<HoldingAnimalsResponse> GetAnimalsAsync(
+        string cph,
+        CancellationToken cancellationToken = default) =>
+        GetAnimalsByQueryAsync(cph, new CattleSearchQuery(), cancellationToken);
 
-    public Task<HoldingAnimalsResponse> GetSiresAsync(string cph, CancellationToken cancellationToken = default) =>
-        GetAnimalsAsync(cph, new CattleSearchQuery(Sex: Male), cancellationToken);
+    public Task<HoldingAnimalsResponse> GetDamsAsync(
+        string cph,
+        CancellationToken cancellationToken = default) =>
+        GetAnimalsByQueryAsync(cph, new CattleSearchQuery(Sex: Female), cancellationToken);
+
+    public Task<HoldingAnimalsResponse> GetSiresAsync(
+        string cph,
+        CancellationToken cancellationToken = default) =>
+        GetAnimalsByQueryAsync(cph, new CattleSearchQuery(Sex: Male), cancellationToken);
 
     private static string CompareKey(string eartag) =>
         string.Concat(eartag.Where(c => !char.IsWhiteSpace(c))).ToUpperInvariant();
@@ -76,7 +85,7 @@ public sealed partial class DataService(
         Sex = string.IsNullOrWhiteSpace(cattle.Sex) ? null : cattle.Sex,
     };
 
-    private async Task<HoldingAnimalsResponse> GetAnimalsAsync(
+    private async Task<HoldingAnimalsResponse> GetAnimalsByQueryAsync(
         string cph,
         CattleSearchQuery query,
         CancellationToken cancellationToken)
@@ -91,7 +100,7 @@ public sealed partial class DataService(
             .Select(ToParentAnimal)
             .ToList();
 
-        LogRetrievedParentAnimals(animals.Count, query.ToString(), normalisedCph);
+        LogRetrievedAnimals(animals.Count, query.ToString(), normalisedCph);
 
         return new HoldingAnimalsResponse
         {

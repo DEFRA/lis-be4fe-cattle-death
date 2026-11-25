@@ -29,6 +29,14 @@ Accept: application/json
 
 > ../asserts/Should_be_200_OK.js
 
+### List the animals on the holding
+GET {{host}}/data/{{cph}}/animals
+x-api-key: {{apiKey}}
+x-cdp-request-id: {{$guid}}
+Accept: application/json
+
+> ../asserts/Should_be_200_OK.js
+
 ### Get an animal on the holding
 # 404 if cattleId is not on the holding in the environment you are calling.
 GET {{host}}/data/{{cph}}/animals/{{cattleId}}
