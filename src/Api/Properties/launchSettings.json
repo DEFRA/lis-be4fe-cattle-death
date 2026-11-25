@@ -1,0 +1,18 @@
+{
+  "profiles": {
+    "Development": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "applicationUrl": "http://localhost:8085",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "Mongo__DatabaseUri": "mongodb://dev:dev@127.0.0.1:27017/",
+        "Mongo__DatabaseName": "lis-be4fe-cattle-death",
+        "CattleApi__BaseUrl": "http://localhost:5019",
+        "CattleApi__ApiKey": "local-dev-cattle-api-key",
+        "ApiKeyAuthentication__Keys__0": "local-dev-cattle-death-api-key"
+      }
+    }
+  }
+}

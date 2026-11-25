@@ -1,0 +1,101 @@
+### Start or continue a submission
+GET {{host}}/submission/{{cph}}/start
+x-api-key: {{apiKey}}
+x-cdp-request-id: {{$guid}}
+Accept: application/json
+
+> {%
+    client.global.set("submissionId", response.body["submission-id"]);
+    client.test("Status is 200", () => client.assert(response.status === 200));
+%}
+
+### Resume that submission by its id
+GET {{host}}/submission/{{cph}}/start?key={{submissionId}}
+x-api-key: {{apiKey}}
+x-cdp-request-id: {{$guid}}
+Accept: application/json
+
+> ../asserts/Should_be_200_OK.js
+
+### Save an animal's data
+POST {{host}}/submission/{{cph}}/{{submissionId}}/{{cattleId}}
+x-api-key: {{apiKey}}
+x-cdp-request-id: {{$guid}}
+Content-Type: application/json
+
+{
+  "status": "COMPLETE",
+  "data": [
+    {
+      "key": "date-of-death",
+      "value": "2026-11-01",
+      "type": "DATE"
+    }
+  ]
+}
+
+> ../asserts/Should_be_200_OK.js
+
+### Get an animal's data
+GET {{host}}/submission/{{cph}}/{{submissionId}}/{{cattleId}}
+x-api-key: {{apiKey}}
+x-cdp-request-id: {{$guid}}
+Accept: application/json
+
+> ../asserts/Should_be_200_OK.js
+
+### Get the submission and its animals
+GET {{host}}/submission/{{cph}}/{{submissionId}}
+x-api-key: {{apiKey}}
+x-cdp-request-id: {{$guid}}
+Accept: application/json
+
+> ../asserts/Should_be_200_OK.js
+
+### Submit the submission
+# Answers 503 and leaves the submission a draft until the transfer to the cattle API is built.
+POST {{host}}/submission/{{cph}}/{{submissionId}}
+x-api-key: {{apiKey}}
+x-cdp-request-id: {{$guid}}
+
+> {%
+    client.test("Status is 503", () => client.assert(response.status === 503));
+%}
+
+### Delete an animal
+DELETE {{host}}/submission/{{cph}}/{{submissionId}}/{{cattleId}}
+x-api-key: {{apiKey}}
+x-cdp-request-id: {{$guid}}
+
+> ../asserts/Should_be_200_OK.js
+
+### Delete an animal (no longer in the submission)
+DELETE {{host}}/submission/{{cph}}/{{submissionId}}/{{cattleId}}
+x-api-key: {{apiKey}}
+x-cdp-request-id: {{$guid}}
+
+> ../asserts/Should_be_404.js
+
+### List the submissions for a CPH
+GET {{host}}/submission/{{cph}}
+x-api-key: {{apiKey}}
+x-cdp-request-id: {{$guid}}
+Accept: application/json
+
+> ../asserts/Should_be_200_OK.js
+
+### Get an animal (unknown submission)
+GET {{host}}/submission/{{cph}}/ZZZ-ZZZ-ZZZ/{{cattleId}}
+x-api-key: {{apiKey}}
+x-cdp-request-id: {{$guid}}
+Accept: application/json
+
+> ../asserts/Should_be_404.js
+
+### Start a submission (invalid CPH)
+GET {{host}}/submission/22/001/not-a-holding/start
+x-api-key: {{apiKey}}
+x-cdp-request-id: {{$guid}}
+Accept: application/json
+
+> ../asserts/Should_be_400_bad_request.js
