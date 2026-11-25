@@ -8,4 +8,5 @@ public static class RouteNames
 {
     public const string Submission = "submission";
     public const string Health = "health";
+    public const string Data = "data";
 }

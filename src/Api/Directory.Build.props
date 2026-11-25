@@ -8,6 +8,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Defra.Livestock.Sdk.Api.Strategies" />
     <PackageReference Include="Defra.Livestock.Sdk.Core" />
     <PackageReference Include="Defra.Livestock.Sdk.Submissions" />
     <PackageReference Include="Elastic.CommonSchema.Serilog"/>

@@ -8,6 +8,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using Defra.Livestock.Be4Fe.Api.Authentication;
 using Defra.Livestock.Be4Fe.Api.Config;
+using Defra.Livestock.Be4Fe.Api.Endpoints.Data;
 using Defra.Livestock.Be4Fe.Api.Endpoints.Health;
 using Defra.Livestock.Be4Fe.Api.Exceptions;
 using Defra.Livestock.Be4Fe.Api.MetaData;
@@ -163,6 +164,7 @@ public class Program
         // stay anonymous and need no correlation header.
         app.UseHealthEndpoints();
         app.MapSubmissionEndpoints().RequireServiceToServiceAuthorization();
+        app.UseDataEndpoints();
 
         return app;
     }
