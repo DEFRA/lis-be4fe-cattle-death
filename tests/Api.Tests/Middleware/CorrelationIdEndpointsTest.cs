@@ -53,7 +53,7 @@ public sealed class CorrelationIdEndpointsTest : IClassFixture<CorrelationIdEndp
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         var error = document.RootElement.GetProperty("error");
         error.GetProperty("code").GetString().ShouldBe("missing_header");
-        error.GetProperty("details").GetProperty("header").GetString().ShouldBe(RequestHeaderNames.CorrelationId);
+        error.GetProperty("details").GetProperty("header").GetString().ShouldBe(RequestHeaderNames.CdpRequestId);
     }
 
     [Theory]

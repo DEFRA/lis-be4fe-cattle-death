@@ -42,7 +42,7 @@ public sealed class RequestValidationMiddlewareTest
         var context = CreateContext(new object());
         if (correlationId is not null)
         {
-            context.Request.Headers[RequestHeaderNames.CorrelationId] = correlationId;
+            context.Request.Headers[RequestHeaderNames.CdpRequestId] = correlationId;
         }
 
         await middleware.InvokeAsync(context, _ => Task.CompletedTask);
@@ -57,7 +57,7 @@ public sealed class RequestValidationMiddlewareTest
     {
         var middleware = new CorrelationIdMiddleware(NullLogger<CorrelationIdMiddleware>.Instance);
         var context = CreateContext(new object());
-        context.Request.Headers[RequestHeaderNames.CorrelationId] = "  correlation-id  ";
+        context.Request.Headers[RequestHeaderNames.CdpRequestId] = "  correlation-id  ";
         var nextCalled = false;
 
         await middleware.InvokeAsync(context, _ =>
@@ -74,7 +74,7 @@ public sealed class RequestValidationMiddlewareTest
     {
         var middleware = new CorrelationIdMiddleware(NullLogger<CorrelationIdMiddleware>.Instance);
         var context = CreateContext(new object());
-        context.Request.Headers[RequestHeaderNames.CorrelationId] = new StringValues(["first", "second"]);
+        context.Request.Headers[RequestHeaderNames.CdpRequestId] = new StringValues(["first", "second"]);
 
         await middleware.InvokeAsync(context, _ => Task.CompletedTask);
 
@@ -86,7 +86,7 @@ public sealed class RequestValidationMiddlewareTest
     {
         var middleware = new CorrelationIdMiddleware(NullLogger<CorrelationIdMiddleware>.Instance);
         var context = CreateContext(new object());
-        context.Request.Headers[RequestHeaderNames.CorrelationId] = "corr-598";
+        context.Request.Headers[RequestHeaderNames.CdpRequestId] = "corr-598";
         string? seen = null;
 
         await middleware.InvokeAsync(context, _ =>
@@ -96,7 +96,7 @@ public sealed class RequestValidationMiddlewareTest
         });
 
         seen.ShouldBe("corr-598");
-        context.Response.Headers[RequestHeaderNames.CorrelationId].ToString().ShouldBe("corr-598");
+        context.Response.Headers[RequestHeaderNames.CdpRequestId].ToString().ShouldBe("corr-598");
     }
 
     [Fact]
@@ -116,7 +116,7 @@ public sealed class RequestValidationMiddlewareTest
     {
         var middleware = new CorrelationIdMiddleware(NullLogger<CorrelationIdMiddleware>.Instance);
         var context = CreateContext(new object());
-        context.Request.Headers[RequestHeaderNames.CorrelationId] = "correlation-id";
+        context.Request.Headers[RequestHeaderNames.CdpRequestId] = "correlation-id";
 
         var exception = await Should.ThrowAsync<InvalidOperationException>(
             () => middleware.InvokeAsync(context, _ => throw new InvalidOperationException("failure")));

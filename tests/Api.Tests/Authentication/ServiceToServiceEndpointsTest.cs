@@ -71,7 +71,7 @@ public sealed class ServiceToServiceEndpointsTest : IClassFixture<ServiceToServi
     private HttpClient CreateCorrelatedClient()
     {
         var client = factory.CreateClient();
-        client.DefaultRequestHeaders.Add(RequestHeaderNames.CorrelationId, "corr-auth-test");
+        client.DefaultRequestHeaders.Add(RequestHeaderNames.CdpRequestId, "corr-auth-test");
         return client;
     }
 

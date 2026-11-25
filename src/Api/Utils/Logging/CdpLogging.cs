@@ -6,6 +6,7 @@ namespace Defra.Livestock.Be4Fe.Api.Utils.Logging;
 
 using System.Diagnostics.CodeAnalysis;
 using Defra.Livestock.Be4Fe.Api.Utils.Auditing;
+using Defra.Livestock.Sdk.Api.Strategies.Operations.Http.Rest.Client;
 using Serilog;
 using Serilog.Events;
 using ILogger = Serilog.ILogger;
@@ -14,12 +15,13 @@ public static class CdpLogging
 {
     /// <summary>
     /// Log sources that write raw request URLs at Information. The URLs can carry the Defra ID subject, as in
-    /// <c>/submission/{submissionId}/{animalId}/{section}</c> inbound, so they are held at Warning.
+    /// <c>/submission/{submissionId}/{animalId}/{section}</c> inbound and <c>/v1/users/{userId}</c> to the cattle API, so they are held at Warning.
     /// </summary>
     public static readonly IReadOnlyList<string> RawUrlLoggers =
     [
         "Microsoft.AspNetCore.Hosting.Diagnostics",
         "System.Net.Http.HttpClient",
+        typeof(RestHttpClient).FullName!,
     ];
 
     [ExcludeFromCodeCoverage]

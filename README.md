@@ -19,13 +19,14 @@ hub (front-office or back-office) → lis-apps-cattle-death → this API → lis
 
 - Callers: intended for `lis-apps-cattle-death` only, which does not call it yet. This is an internal CDP
   service with no sign-in of its own.
-- Authentication: every `/submission` endpoint needs an `x-api-key` header that matches one of the keys in
+- Authentication: every `/submission` and `/data` endpoint needs an `x-api-key` header that matches one of the keys in
   `ApiKeyAuthentication__Keys__N`, or it returns `401`. The spoke is expected to send its key as `CATTLE_DEATH_API_KEY`.
   `/health`, the OpenAPI document and Scalar are anonymous. The endpoints use the `ServiceToService`
-  authorisation policy, so another scheme can be added to that policy later. Every `/submission` request also
+  authorisation policy, so another scheme can be added to that policy later. Every `/submission` and `/data` request also
   needs an `x-cdp-request-id` header (see [Correlation ID](#correlation-id)).
-- Downstream calls: none yet. The transfer of submissions to `lis-api-cattle` is not built. This API does not send or
-  check an AWS STS service token.
+- Downstream calls: `lis-api-cattle`, through the client in `src/Integrations/CattleApi`, for the animals on a holding.
+  The transfer of submissions and the unallocated eartags are not built yet. This API does not send or check an AWS STS
+  service token.
 - Data store: MongoDB (database `lis-be4fe-cattle-death`) holds submissions in the `submissions` collection. Each one has a GUID as its
   document id, which stays internal, and a hash id (`XXX-XXX-XXX`, Crockford base32) that is the only id the API uses.
 
@@ -34,6 +35,7 @@ See [HUB-ARCHITECTURE.md](https://github.com/DEFRA/lis-dev/blob/main/HUB-ARCHITE
 ### Structure
 
 - `src/Api` is the application: endpoints, authentication, middleware and services
+- `src/Integrations/CattleApi` is the client for `lis-api-cattle`
 - `src/Models` holds the shared response models
 - `tests/Api.Tests` holds the unit and endpoint tests
 - `tests/Endpoints` holds `.http` requests for every `/submission` endpoint (see [Running tests](#running-tests))
@@ -42,7 +44,7 @@ See [HUB-ARCHITECTURE.md](https://github.com/DEFRA/lis-dev/blob/main/HUB-ARCHITE
 
 ### Endpoints
 
-Paths under `/submission` need the `x-api-key` and `x-cdp-request-id` headers.
+Paths under `/submission` and `/data` need the `x-api-key` and `x-cdp-request-id` headers.
 
 | Method and path | Purpose |
 |---|---|
@@ -50,6 +52,10 @@ Paths under `/submission` need the `x-api-key` and `x-cdp-request-id` headers.
 | `GET /openapi/v1.json` | OpenAPI v1 document (`/openapi` redirects to it) |
 | `GET /scalar/v1` | Interactive Scalar API reference |
 | `/submission/{county}/{parish}/{holding}/...` | The BFF framework submission endpoints, from the [`Defra.Livestock.Sdk.Submissions`](https://github.com/DEFRA/lis-sdk-nuget-submissions#endpoints) package |
+| `GET /data/{county}/{parish}/{holding}/ear-tags/unallocated` | Eartags issued to the holding that are not yet on an animal. Always `503` until the cattle API endpoint exists |
+| `GET /data/{county}/{parish}/{holding}/ear-tags/dams` | Animals on the holding that can be chosen as a dam, from the cattle API |
+| `GET /data/{county}/{parish}/{holding}/ear-tags/sires` | Animals on the holding that can be chosen as a sire, from the cattle API |
+| `GET /data/{county}/{parish}/{holding}/animals/{animalId}` | An animal on the holding, by its eartag. `404` if it is not there |
 
 Errors use problem details.
 
@@ -103,7 +109,7 @@ docker compose up -d
 ```
 
 In compose this API is the `lis-be4fe-cattle-death` service, built from this repo and published on port 8085. That
-service does not yet set `ApiKeyAuthentication__Keys__0`, so until it does
+service does not yet set `CattleApi__BaseUrl`, `CattleApi__ApiKey` or `ApiKeyAuthentication__Keys__0`, so until it does
 only `/health` works there: `/submission` requests are rejected with `401`.
 
 To work on this API with the rest of the stack still in Docker, stop its container and run it on the host on the same
@@ -116,11 +122,13 @@ docker compose stop lis-be4fe-cattle-death
 cd be4fe/cattle-death
 ASPNETCORE_URLS=http://localhost:8085 \
 Mongo__DatabaseUri=mongodb://127.0.0.1:27017/ \
+CattleApi__BaseUrl=http://localhost:8091 \
+CattleApi__ApiKey=local-dev-cattle-api-key \
 ApiKeyAuthentication__Keys__0=local-dev-cattle-death-api-key \
 dotnet run --project src/Api --no-launch-profile
 ```
 
-MongoDB publishes port 27017 on the host. Use `dotnet watch` in place of `dotnet run` to
+MongoDB and `lis-api-cattle` publish ports 27017 and 8091 on the host. Use `dotnet watch` in place of `dotnet run` to
 restart on changes. When done, press Ctrl+C and run `docker compose start lis-be4fe-cattle-death`.
 
 ## Running standalone
@@ -132,7 +140,8 @@ docker compose up -d mongodb
 dotnet run --project src/Api --launch-profile Development   # http://localhost:8085
 ```
 
-`/health` and `/scalar/v1` work without any other service. The `/submission` endpoints need MongoDB on `127.0.0.1:27017`.
+`/health` and `/scalar/v1` work without any other service, because the cattle API options are only checked when
+used. The `/submission` endpoints need MongoDB on `127.0.0.1:27017`.
 
 To run this API and MongoDB together in containers, without lis-dev:
 
@@ -140,7 +149,7 @@ To run this API and MongoDB together in containers, without lis-dev:
 docker compose up --build
 ```
 
-This publishes the API on <http://localhost:3228>.
+This publishes the API on <http://localhost:3228> and expects `lis-api-cattle` on `host.docker.internal:5019`.
 
 ### Configuration
 
@@ -154,6 +163,8 @@ the CDP portal for every deployed environment.
 | `ASPNETCORE_URLS` | Address and port to bind. The container sets `http://+:8085` | no | .NET default |
 | `Mongo__DatabaseUri` | MongoDB connection string. CDP replaces the placeholder with the platform's AWS-authenticated URI | yes | `mongodb://set-automatically-when-deployed/admin?authSource=$external&authMechanism=MONGODB-AWS` (`mongodb://127.0.0.1:27017` in Development) |
 | `Mongo__DatabaseName` | MongoDB database name | yes | `lis-be4fe-cattle-death` |
+| `CattleApi__BaseUrl` | Base URL of `lis-api-cattle`. CDP sets it per environment | for the `/data` animal lookups | empty (`http://localhost:5019` in Development) |
+| `CattleApi__ApiKey` | Secret. Key sent to `lis-api-cattle` as `x-api-key`. Must match one of that API's `ApiKeyAuthentication__Keys__N` | for the `/data` animal lookups | empty |
 | `ApiKeyAuthentication__Keys__0` | Secret. Key callers must send as `x-api-key`. Must equal `CATTLE_DEATH_API_KEY` in `lis-apps-cattle-death` | yes | none |
 | `ApiKeyAuthentication__Keys__1` | Secret. Optional second key, so a key can be rotated without downtime | no | none |
 | `ApiKeyAuthentication__HeaderName` | Header that carries the key | no | `x-api-key` |
@@ -163,10 +174,11 @@ the CDP portal for every deployed environment.
 | `HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY` | Outbound proxy settings, read by the default .NET handler | no | none |
 | `TRUSTSTORE_*` | CDP-supplied certificates, loaded into the trust store at start-up | no | none |
 
-With no inbound key configured, the API starts and answers `/health` but rejects every `/submission` request.
+With no inbound key configured, the API starts and answers `/health` but rejects every `/submission` and `/data` request. With no
+`CattleApi__BaseUrl` or `CattleApi__ApiKey`, it also starts, as those are only checked when a `/data` list is requested.
 On CDP, logs go to the console in Elastic Common Schema format. Request paths are logged as the route template
 (for example `/submission/{submissionId}/{animalId}/{section}`), never the raw path, because the path can carry identifiers. The
-sources that log raw URLs (ASP.NET Core hosting and `HttpClient`) are held at `Warning`
+sources that log raw URLs (ASP.NET Core hosting, `HttpClient` and the SDK REST client) are held at `Warning`
 whatever the configuration says.
 
 ## Running tests
@@ -176,19 +188,19 @@ dotnet test be4fe-cattle-death.slnx      # unit and endpoint tests
 dotnet format be4fe-cattle-death.slnx    # format the code; the build also runs StyleCop and Sonar analysers
 ```
 
-`tests/Api.Tests` covers authentication, the correlation ID check, error handling, logging, OpenAPI and the
-submission wiring. The endpoint tests run in memory with the submission store and transfer replaced, so they
+`tests/Api.Tests` covers authentication, the correlation ID check, error handling, logging, OpenAPI, the cattle API
+client, the `/data` endpoints and the submission wiring. The endpoint tests run in memory with the submission store and transfer replaced, so they
 need no Docker or database. The MongoDB submission repository itself is not covered by them.
 
 ### Endpoint requests (`tests/Endpoints`)
 
 `tests/Endpoints` holds JetBrains HTTP client requests, with asserts, for every `/submission` endpoint, grouped by area
-(`death`, `health`). `security/Security.http` checks that a missing or wrong `x-api-key` gives
+(`death`, `data`, `health`). `security/Security.http` checks that a missing or wrong `x-api-key` gives
 `401` and that a missing `x-cdp-request-id` gives `400 missing_header`. Run them from the IDE or with `ijhttp`:
 
 ```bash
 cd tests/Endpoints
-ijhttp --env-file http-client.env.json --env local health/Health.http death/Death.http security/Security.http
+ijhttp --env-file http-client.env.json --env local health/Health.http death/Death.http data/Data.http security/Security.http
 ```
 
 - `local` expects this API on 8085, the port of the `Development` launch profile, and MongoDB on 27017.

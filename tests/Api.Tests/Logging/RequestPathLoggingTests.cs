@@ -71,7 +71,7 @@ public class RequestPathLoggingTests
         var response = await app.GetAuthenticatedTestClient().GetAsync($"/submission/12/345/6789/{PathIdentifier}/UK1", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
-        sink.Events.ShouldContain(e => e.MessageTemplate.Text.Contains(RequestHeaderNames.CorrelationId, StringComparison.Ordinal));
+        sink.Events.ShouldContain(e => e.MessageTemplate.Text.Contains(RequestHeaderNames.CdpRequestId, StringComparison.Ordinal));
         AssertNoEventContainsThePathIdentifier();
     }
 
@@ -80,7 +80,7 @@ public class RequestPathLoggingTests
     {
         await using var app = await StartAppAsync();
         var client = app.GetTestClient();
-        client.DefaultRequestHeaders.Add(RequestHeaderNames.CorrelationId, CorrelationId);
+        client.DefaultRequestHeaders.Add(RequestHeaderNames.CdpRequestId, CorrelationId);
 
         var response = await client.GetAsync($"/submission/12/345/6789/{PathIdentifier}/UK1", TestContext.Current.CancellationToken);
 
@@ -104,7 +104,7 @@ public class RequestPathLoggingTests
     private static HttpClient AuthenticatedClient(WebApplication app)
     {
         var client = app.GetAuthenticatedTestClient();
-        client.DefaultRequestHeaders.Add(RequestHeaderNames.CorrelationId, CorrelationId);
+        client.DefaultRequestHeaders.Add(RequestHeaderNames.CdpRequestId, CorrelationId);
         return client;
     }
 

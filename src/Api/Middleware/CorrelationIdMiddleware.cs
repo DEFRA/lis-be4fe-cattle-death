@@ -37,7 +37,7 @@ public partial class CorrelationIdMiddleware(ILogger<CorrelationIdMiddleware> lo
 
         try
         {
-            var values = context.Request.Headers[RequestHeaderNames.CorrelationId];
+            var values = context.Request.Headers[RequestHeaderNames.CdpRequestId];
             var correlationId = values.Count == 1 ? NormalizeHeaderValue(values.ToString()) : null;
             if (string.IsNullOrWhiteSpace(correlationId))
             {
@@ -46,13 +46,13 @@ public partial class CorrelationIdMiddleware(ILogger<CorrelationIdMiddleware> lo
                     context,
                     statusCode: StatusCodes.Status400BadRequest,
                     code: "missing_header",
-                    message: $"A single {RequestHeaderNames.CorrelationId} header is required.",
-                    details: new { header = $"{RequestHeaderNames.CorrelationId}" });
+                    message: $"A single {RequestHeaderNames.CdpRequestId} header is required.",
+                    details: new { header = $"{RequestHeaderNames.CdpRequestId}" });
                 return;
             }
 
             CorrelationIdContext.Value = correlationId;
-            context.Response.Headers[RequestHeaderNames.CorrelationId] = correlationId;
+            context.Response.Headers[RequestHeaderNames.CdpRequestId] = correlationId;
 
             using (LogContext.PushProperty("CorrelationId", correlationId))
             {

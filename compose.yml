@@ -22,6 +22,8 @@ services:
       ASPNETCORE_URLS: http://+:8085
       Mongo__DatabaseUri: mongodb://mongodb:27017/
       Mongo__DatabaseName: lis-be4fe-cattle-death
+      CattleApi__BaseUrl: http://host.docker.internal:5019
+      CattleApi__ApiKey: local-dev-cattle-api-key
       # Inbound key; lis-apps-cattle-death is expected to send it as CATTLE_DEATH_API_KEY.
       ApiKeyAuthentication__Keys__0: local-dev-cattle-death-api-key
     networks:

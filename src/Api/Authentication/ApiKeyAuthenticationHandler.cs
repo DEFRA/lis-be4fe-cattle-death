@@ -27,7 +27,7 @@ public sealed partial class ApiKeyAuthenticationHandler(
     /// <summary>Gets the claim that identifies which configured key the caller presented.</summary>
     public const string ClientIdClaimType = "client_id";
 
-    private string CdpRequestId => Request.Headers[RequestHeaderNames.CorrelationId].ToString();
+    private string CdpRequestId => Request.Headers[RequestHeaderNames.CdpRequestId].ToString();
 
     /// <inheritdoc />
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()

@@ -5,12 +5,15 @@
 namespace Defra.Livestock.Be4Fe.Api.Exceptions;
 
 using Defra.Livestock.Be4Fe.Api.Utils.Logging;
+using Defra.Livestock.Be4Fe.CattleApi;
 using Defra.Livestock.Sdk.Core.Exceptions;
 using Defra.Livestock.Sdk.Core.Middleware.Headers;
 using Defra.Livestock.Sdk.Submissions.Exceptions;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Serilog.Context;
+using CattleApiUnavailableException = Defra.Livestock.Be4Fe.CattleApi.ServiceUnavailableException;
+using CoreServiceUnavailableException = Defra.Livestock.Sdk.Core.Exceptions.ServiceUnavailableException;
 
 public sealed partial class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : IExceptionHandler
 {
@@ -21,20 +24,20 @@ public sealed partial class ApiExceptionHandler(ILogger<ApiExceptionHandler> log
     {
         var (statusCode, title, type) = exception switch
         {
-            NotFoundException => (StatusCodes.Status404NotFound, "Not Found", "https://httpstatuses.com/404"),
+            NotFoundException or HoldingNotFoundException => (StatusCodes.Status404NotFound, "Not Found", "https://httpstatuses.com/404"),
             ConflictException or SubmissionConflictException => (StatusCodes.Status409Conflict, "Conflict", "https://httpstatuses.com/409"),
 
             // A body that cannot be bound. ASP.NET throws this rather than answering 400 itself in Development.
             BadHttpRequestException => (StatusCodes.Status400BadRequest, "Bad Request", "https://httpstatuses.com/400"),
             ArgumentException => (StatusCodes.Status400BadRequest, "Bad Request", "https://httpstatuses.com/400"),
             UnauthorizedAccessException => (StatusCodes.Status403Forbidden, "Forbidden", "https://httpstatuses.com/403"),
-            ServiceUnavailableException => (StatusCodes.Status503ServiceUnavailable, "Service Unavailable", "https://httpstatuses.com/503"),
+            CoreServiceUnavailableException or CattleApiUnavailableException => (StatusCodes.Status503ServiceUnavailable, "Service Unavailable", "https://httpstatuses.com/503"),
             _ => (StatusCodes.Status500InternalServerError, "Internal Server Error", "https://httpstatuses.com/500"),
         };
 
         // Put useful values into the Serilog LogContext (works with Enrich.FromLogContext()). The correlation
         // middleware's scope has already unwound here, so the ID is read from the header it enforced.
-        var correlationId = httpContext.Request.Headers[RequestHeaderNames.CorrelationId].ToString();
+        var correlationId = httpContext.Request.Headers[RequestHeaderNames.CdpRequestId].ToString();
 
         // The route template, not the raw path: the path can carry the Defra ID subject.
         var path = LoggableRequestPath.For(httpContext);
@@ -72,7 +75,7 @@ public sealed partial class ApiExceptionHandler(ILogger<ApiExceptionHandler> log
         // The exception handler clears response headers, so echo the correlation ID again.
         if (!string.IsNullOrEmpty(correlationId))
         {
-            httpContext.Response.Headers[RequestHeaderNames.CorrelationId] = correlationId;
+            httpContext.Response.Headers[RequestHeaderNames.CdpRequestId] = correlationId;
         }
 
         await httpContext.Response.WriteAsJsonAsync(problem, cancellationToken);

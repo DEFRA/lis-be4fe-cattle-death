@@ -82,7 +82,7 @@ public sealed class SubmissionEndpointsTest
         {
             var client = CreateClient();
             client.DefaultRequestHeaders.Add(RequestHeaderNames.ApiKey, TestAuthentication.ApiKey);
-            client.DefaultRequestHeaders.Add(RequestHeaderNames.CorrelationId, "corr-submission-test");
+            client.DefaultRequestHeaders.Add(RequestHeaderNames.CdpRequestId, "corr-submission-test");
             return client;
         }
 

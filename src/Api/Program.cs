@@ -13,12 +13,18 @@ using Defra.Livestock.Be4Fe.Api.Endpoints.Health;
 using Defra.Livestock.Be4Fe.Api.Exceptions;
 using Defra.Livestock.Be4Fe.Api.MetaData;
 using Defra.Livestock.Be4Fe.Api.Middleware;
+using Defra.Livestock.Be4Fe.Api.Services;
 using Defra.Livestock.Be4Fe.Api.Utils;
 using Defra.Livestock.Be4Fe.Api.Utils.Logging;
 using Defra.Livestock.Be4Fe.Api.Utils.Mongo;
+using Defra.Livestock.Be4Fe.CattleApi;
+using Defra.Livestock.Sdk.Api.Strategies;
+using Defra.Livestock.Sdk.Api.Strategies.Abstractions.Operations.Http.Rest.Client;
+using Defra.Livestock.Sdk.Api.Strategies.Operations.Http.Rest.Client;
 using Defra.Livestock.Sdk.Submissions;
 using Defra.Livestock.Sdk.Submissions.Endpoints;
 using Defra.Livestock.Sdk.Submissions.Services;
+using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
 using Scalar.AspNetCore;
 using Serilog;
@@ -59,6 +65,7 @@ public class Program
         builder.Host.UseSerilog(CdpLogging.Configuration);
         builder.Services.AddProblemDetails();
         builder.Services.AddExceptionHandler<ApiExceptionHandler>();
+        builder.Services.AddStrategyFramework();
         builder.Services.ConfigureHttpJsonOptions(options =>
         {
             options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
@@ -75,10 +82,10 @@ public class Program
         // Calls from the cattle-death UI: an API key for now, AWS STS later (LREG-560).
         services.AddServiceToServiceAuthentication(configuration);
 
-        // Require x-cdp-request-id on every /submission endpoint (Correlation ID standard) and propagate it downstream.
+        // Require x-cdp-request-id on every /submission and /data endpoint (Correlation ID standard) and propagate it downstream.
         services.AddTransient<CorrelationIdMiddleware>();
         ConfigureHeaderPropagation(services, configuration);
-        ConfigureExternalDependencies(services);
+        ConfigureExternalDependencies(services, configuration);
         ConfigureMongo(services, configuration);
         ConfigureOpenApi(services);
     }
@@ -98,13 +105,33 @@ public class Program
     }
 
     [ExcludeFromCodeCoverage]
-    private static void ConfigureExternalDependencies(IServiceCollection services)
+    private static void ConfigureExternalDependencies(IServiceCollection services, IConfiguration configuration)
     {
         services.AddSingleton(TimeProvider.System);
+
+        // Cattle API options are validated when first used, so the service boots (and answers /health)
+        // before the base URL and API key are configured.
+        services.AddOptions<CattleApiOptions>()
+            .Bind(configuration.GetRequiredSection(CattleApiOptions.SectionName));
+        services.AddSingleton(provider => provider.GetRequiredService<IOptions<CattleApiOptions>>().Value);
+
+        // Strategies SDK REST client, registered before the factory so it carries header propagation
+        // (x-cdp-request-id) to the cattle API.
+        services.AddHttpClient<IRestHttpClient, RestHttpClient>().AddHeaderPropagation();
+        services.AddRestStrategyFactory<CattleHoldingRestClient>();
+        services.AddScoped<ICattleHoldingClient, CattleHoldingRestClient>();
 
         // BFF framework submissions. The transfer to the cattle API is a stand-in that always fails until it is built.
         services.AddSubmissions();
         services.AddSingleton<ISubmissionTransfer, NotConfiguredSubmissionTransfer>();
+
+        // Reference data for the UI. Animals on the holding come from the cattle-on-holding search; the cattle API
+        // endpoint for unallocated eartags is not defined yet, so its source is a stand-in that always answers 503 until
+        // it is built.
+        services.AddOptions<UnallocatedEarTagOptions>()
+            .Bind(configuration.GetSection(UnallocatedEarTagOptions.SectionName));
+        services.AddSingleton<IUnallocatedEarTagSource, NotConfiguredUnallocatedEarTagSource>();
+        services.AddScoped<IDataService, DataService>();
     }
 
     [ExcludeFromCodeCoverage]
@@ -134,7 +161,7 @@ public class Program
                 {
                     Title = "Cattle Death API",
                     Version = "v1",
-                    Description = "BE4FE API surface for the cattle-death Node application: the BFF framework endpoints for death submissions.",
+                    Description = "BE4FE API surface for the cattle-death Node application: the BFF framework endpoints for death submissions and the reference data the UI's forms read.",
                 };
 
                 return Task.CompletedTask;
@@ -160,8 +187,8 @@ public class Program
             .ExcludeFromDescription()
             .WithMetadata(new IgnoreCorrelationIdCheck());
 
-        // Every /submission endpoint requires AuthPolicies.ServiceToService and x-cdp-request-id; health and OpenAPI
-        // stay anonymous and need no correlation header.
+        // Every /submission and /data endpoint requires AuthPolicies.ServiceToService and x-cdp-request-id; health and
+        // OpenAPI stay anonymous and need no correlation header.
         app.UseHealthEndpoints();
         app.MapSubmissionEndpoints().RequireServiceToServiceAuthorization();
         app.UseDataEndpoints();
