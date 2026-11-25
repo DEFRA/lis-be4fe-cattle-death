@@ -4,9 +4,9 @@
 
 namespace Defra.Livestock.Be4Fe.Api.Exceptions;
 
-using Defra.Livestock.Be4Fe.Api.Middleware.Headers;
 using Defra.Livestock.Be4Fe.Api.Utils.Logging;
 using Defra.Livestock.Sdk.Core.Exceptions;
+using Defra.Livestock.Sdk.Core.Middleware.Headers;
 using Defra.Livestock.Sdk.Submissions.Exceptions;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;

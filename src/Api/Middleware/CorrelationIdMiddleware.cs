@@ -5,8 +5,8 @@
 namespace Defra.Livestock.Be4Fe.Api.Middleware;
 
 using Defra.Livestock.Be4Fe.Api.MetaData;
-using Defra.Livestock.Be4Fe.Api.Middleware.Headers;
 using Defra.Livestock.Be4Fe.Api.Utils.Logging;
+using Defra.Livestock.Sdk.Core.Middleware.Headers;
 using Serilog.Context;
 
 /// <summary>

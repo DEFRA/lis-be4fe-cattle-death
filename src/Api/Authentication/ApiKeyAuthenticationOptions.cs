@@ -4,7 +4,7 @@
 
 namespace Defra.Livestock.Be4Fe.Api.Authentication;
 
-using Defra.Livestock.Be4Fe.Api.Middleware.Headers;
+using Defra.Livestock.Sdk.Core.Middleware.Headers;
 using Microsoft.AspNetCore.Authentication;
 
 /// <summary>

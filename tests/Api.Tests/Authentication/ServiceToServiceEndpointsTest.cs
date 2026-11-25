@@ -6,7 +6,7 @@ namespace Defra.Livestock.Be4Fe.Api.Tests.Authentication;
 
 using System.Net;
 using Defra.Livestock.Be4Fe.Api.Authentication;
-using Defra.Livestock.Be4Fe.Api.Middleware.Headers;
+using Defra.Livestock.Sdk.Core.Middleware.Headers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Routing;

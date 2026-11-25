@@ -8,8 +8,8 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Encodings.Web;
-using Defra.Livestock.Be4Fe.Api.Middleware.Headers;
 using Defra.Livestock.Be4Fe.Api.Utils.Logging;
+using Defra.Livestock.Sdk.Core.Middleware.Headers;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Options;
 
