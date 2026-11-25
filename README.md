@@ -55,6 +55,7 @@ Paths under `/submission` and `/data` need the `x-api-key` and `x-cdp-request-id
 | `GET /data/{county}/{parish}/{holding}/ear-tags/unallocated` | Eartags issued to the holding that are not yet on an animal. Always `503` until the cattle API endpoint exists |
 | `GET /data/{county}/{parish}/{holding}/ear-tags/dams` | Animals on the holding that can be chosen as a dam, from the cattle API |
 | `GET /data/{county}/{parish}/{holding}/ear-tags/sires` | Animals on the holding that can be chosen as a sire, from the cattle API |
+| `GET /data/{county}/{parish}/{holding}/animals` | All animals on the holding, from the cattle API |
 | `GET /data/{county}/{parish}/{holding}/animals/{animalId}` | An animal on the holding, by its eartag. `404` if it is not there |
 
 Errors use problem details.

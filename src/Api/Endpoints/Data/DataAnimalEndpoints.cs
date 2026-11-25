@@ -15,6 +15,15 @@ public static class DataAnimalEndpoints
 {
     public static IEndpointRouteBuilder UseDataAnimalEndpoints(this IEndpointRouteBuilder app, RouteGroupBuilder group)
     {
+        group.MapGet("/{county}/{parish}/{holding}/animals", GetAnimals)
+            .WithName(OpenApiMetadata.GetAnimals.Name)
+            .WithSummary(OpenApiMetadata.GetAnimals.Summary)
+            .WithDescription(OpenApiMetadata.GetAnimals.Description)
+            .Produces<HoldingAnimalsResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
+
         group.MapGet("/{county}/{parish}/{holding}/animals/{animalId}", GetAnimal)
             .WithName(OpenApiMetadata.GetAnimal.Name)
             .WithSummary(OpenApiMetadata.GetAnimal.Summary)
@@ -25,6 +34,16 @@ public static class DataAnimalEndpoints
             .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
 
         return app;
+    }
+
+    private static async Task<IResult> GetAnimals(
+        [AsParameters] CphRoute cph,
+        IDataService dataService,
+        CancellationToken cancellationToken)
+    {
+        return TypedResults.Ok(await dataService.GetAnimalsAsync(
+            cph.ToString(),
+            cancellationToken));
     }
 
     private static async Task<IResult> GetAnimal(

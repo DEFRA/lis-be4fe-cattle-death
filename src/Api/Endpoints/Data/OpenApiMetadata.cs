@@ -35,4 +35,11 @@ public static class OpenApiMetadata
         public const string Summary = "Gets an animal on a CPH by its eartag.";
         public const string Description = "Returns the animal on the holding whose eartag matches the animalId route parameter, sourced from the cattle API. The CPH is supplied as county, parish and holding route segments. 400 when the CPH is invalid, 404 when the holding is unknown or no animal on it has that eartag, 503 when the cattle API is unavailable.";
     }
+
+    public static class GetAnimals
+    {
+        public const string Name = "GetAnimals";
+        public const string Summary = "Gets the animals on a CPH.";
+        public const string Description = "Returns the animals on the holding, sourced from the cattle API. The CPH is supplied as county, parish and holding route segments. 400 when the CPH is invalid, 404 when the holding is unknown, 503 when the cattle API is unavailable.";
+    }
 }

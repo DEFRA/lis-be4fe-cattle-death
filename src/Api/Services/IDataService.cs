@@ -33,6 +33,15 @@ public interface IDataService
     Task<HoldingAnimalsResponse> GetDamsAsync(string cph, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Gets the animals on the holding.
+    /// </summary>
+    /// <param name="cph">The county/parish/holding number.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <exception cref="ArgumentException">The CPH is missing or invalid.</exception>
+    /// <returns>The animals on the holding.</returns>
+    Task<HoldingAnimalsResponse> GetAnimalsAsync(string cph, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Gets the animal on the holding whose eartag matches the animal id.
     /// </summary>
     /// <param name="cph">The county/parish/holding number.</param>

@@ -34,6 +34,7 @@ public sealed class DataEndpointsTest : IAsyncDisposable
     private const string UnallocatedUrl = "/data/12/345/6789/ear-tags/unallocated";
     private const string DamsUrl = "/data/12/345/6789/ear-tags/dams";
     private const string SiresUrl = "/data/12/345/6789/ear-tags/sires";
+    private const string AnimalsUrl = "/data/12/345/6789/animals";
     private const string AnimalUrl = "/data/12/345/6789/animals/UK100000000001";
 
     private readonly DataFactory factory = new();
@@ -142,6 +143,38 @@ public sealed class DataEndpointsTest : IAsyncDisposable
     }
 
     [Fact]
+    public async Task AnimalsShouldSearchTheHoldingWithoutFiltersAndReturnEveryAnimal()
+    {
+        factory.Cattle.Cattle =
+        [
+            Animal("UK100000000001", "Female", "AA", "Aberdeen Angus", new DateOnly(2020, 3, 1)),
+            Animal("UK100000000002", "Male"),
+        ];
+
+        using var body = await GetJsonAsync(AnimalsUrl);
+
+        var (cph, query) = factory.Cattle.Searches.ShouldHaveSingleItem();
+        cph.ShouldBe(Cph);
+        query.IsEmpty.ShouldBeTrue();
+        body.RootElement.GetProperty("cph").GetString().ShouldBe(Cph);
+        EartagsIn(body, "animals").ShouldBe(["UK100000000001", "UK100000000002"]);
+        var first = body.RootElement.GetProperty("animals")[0];
+        first.GetProperty("breed").GetString().ShouldBe("Aberdeen Angus");
+        first.GetProperty("breed-code").GetString().ShouldBe("AA");
+        first.GetProperty("date-of-birth").GetString().ShouldBe("2020-03-01");
+        first.GetProperty("sex").GetString().ShouldBe("Female");
+    }
+
+    [Fact]
+    public async Task AnimalsShouldReturnAnEmptyListWhenTheHoldingHasNoCattle()
+    {
+        using var body = await GetJsonAsync(AnimalsUrl);
+
+        body.RootElement.GetProperty("cph").GetString().ShouldBe(Cph);
+        body.RootElement.GetProperty("animals").GetArrayLength().ShouldBe(0);
+    }
+
+    [Fact]
     public async Task AnimalShouldSearchTheHoldingByEartagAndReturnTheAnimal()
     {
         factory.Cattle.Cattle = [Animal("UK100000000001", "Female", "AA", "Aberdeen Angus", new DateOnly(2020, 3, 1))];
@@ -187,6 +220,7 @@ public sealed class DataEndpointsTest : IAsyncDisposable
     [InlineData("/data/aa/bbb/cccc/ear-tags/unallocated")]
     [InlineData("/data/1/2/3/ear-tags/dams")]
     [InlineData("/data/1/2/3/ear-tags/sires")]
+    [InlineData("/data/1/2/3/animals")]
     [InlineData("/data/1/2/3/animals/UK100000000001")]
     public async Task EndpointsShouldRejectAnInvalidCph(string url)
     {
@@ -200,6 +234,7 @@ public sealed class DataEndpointsTest : IAsyncDisposable
     [Theory]
     [InlineData(DamsUrl)]
     [InlineData(SiresUrl)]
+    [InlineData(AnimalsUrl)]
     [InlineData(AnimalUrl)]
     public async Task CattleEndpointsShouldReturn404WhenTheHoldingIsUnknown(string url)
     {
@@ -213,6 +248,7 @@ public sealed class DataEndpointsTest : IAsyncDisposable
     [Theory]
     [InlineData(DamsUrl)]
     [InlineData(SiresUrl)]
+    [InlineData(AnimalsUrl)]
     [InlineData(AnimalUrl)]
     public async Task CattleEndpointsShouldReturn503WhenTheCattleApiIsUnavailable(string url)
     {
@@ -227,6 +263,7 @@ public sealed class DataEndpointsTest : IAsyncDisposable
     [InlineData(UnallocatedUrl)]
     [InlineData(DamsUrl)]
     [InlineData(SiresUrl)]
+    [InlineData(AnimalsUrl)]
     [InlineData(AnimalUrl)]
     public async Task EndpointsShouldRequireAnApiKey(string url)
     {
@@ -242,6 +279,7 @@ public sealed class DataEndpointsTest : IAsyncDisposable
     [InlineData(UnallocatedUrl)]
     [InlineData(DamsUrl)]
     [InlineData(SiresUrl)]
+    [InlineData(AnimalsUrl)]
     [InlineData(AnimalUrl)]
     public async Task EndpointsShouldRequireACorrelationId(string url)
     {

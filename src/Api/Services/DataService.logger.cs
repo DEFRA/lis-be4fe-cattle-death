@@ -9,6 +9,6 @@ public partial class DataService
     [LoggerMessage(LogLevel.Information, "Retrieved {Count} unallocated eartags, leaving out {Excluded} used in the submission. Cph: {Cph}")]
     partial void LogRetrievedUnallocatedEartags(int count, int excluded, string cph);
 
-    [LoggerMessage(LogLevel.Information, "Retrieved {Count} possible parent animals. Sex: {Sex}, Cph: {Cph}")]
-    partial void LogRetrievedParentAnimals(int count, string sex, string cph);
+    [LoggerMessage(LogLevel.Information, "Retrieved {Count} animals. Query: {Query}, Cph: {Cph}")]
+    partial void LogRetrievedAnimals(int count, string query, string cph);
 }

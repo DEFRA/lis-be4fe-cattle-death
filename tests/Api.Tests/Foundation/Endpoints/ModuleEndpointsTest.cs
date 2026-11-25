@@ -56,6 +56,12 @@ public class ModuleEndpointsTest : IClassFixture<ApiFactory>
             .GetProperty("schema").GetProperty("$ref").GetString().ShouldEndWith("/Animal");
         dataAnimalOperation.GetProperty("responses").TryGetProperty("404", out _).ShouldBeTrue();
 
+        var dataAnimalsOperation = document.RootElement.GetProperty("paths").GetProperty("/data/{county}/{parish}/{holding}/animals").GetProperty("get");
+        dataAnimalsOperation.GetProperty("operationId").GetString().ShouldBe("GetAnimals");
+        dataAnimalsOperation.GetProperty("responses").GetProperty("200").GetProperty("content").GetProperty("application/json")
+            .GetProperty("schema").GetProperty("$ref").GetString().ShouldEndWith("/HoldingAnimalsResponse");
+        dataAnimalsOperation.GetProperty("responses").TryGetProperty("404", out _).ShouldBeTrue();
+
         var apiKey = document.RootElement.GetProperty("components").GetProperty("securitySchemes").GetProperty("ApiKey");
         apiKey.GetProperty("type").GetString().ShouldBe("apiKey");
         apiKey.GetProperty("in").GetString().ShouldBe("header");
